@@ -198,8 +198,8 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- DOM 元素 ---
         const loadingState = document.getElementById('loading-state');
@@ -225,18 +225,16 @@
         const aiModalResult = document.getElementById('ai-modal-result');
 
         // --- Firebase 設定 ---
-	  const firebaseConfig = {
-	    apiKey: "AIzaSyBB0kcD1ECH7CLXvM01RliMpzTLqBy3tgk",
-	    authDomain: "my-accounting-app-data-f7f1e.firebaseapp.com",
-	    projectId: "my-accounting-app-data-f7f1e",
-	    storageBucket: "my-accounting-app-data-f7f1e.firebasestorage.app",
-	    messagingSenderId: "923572739465",
-	    appId: "1:923572739465:web:c785288d08cbdc0ab75558",
-	    measurementId: "G-CWPD2LNQSC"
-	  };
-	  const app = firebaseConfig.my-accounting-app-data;
-	  const analytics = null;
-
+        // 請將此處替換為您自己 Firebase 專案的設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyBB0kcD1ECH7CLXvM01RliMpzTLqBy3tgk",
+            authDomain: "my-accounting-app-data-f7f1e.firebaseapp.com",
+            projectId: "my-accounting-app-data-f7f1e",
+            storageBucket: "my-accounting-app-data-f7f1e.appspot.com", // 已為您修正為標準格式
+            messagingSenderId: "923572739465",
+            appId: "1:923572739465:web:c785288d08cbdc0ab75558",
+            measurementId: "G-CWPD2LNQSC"
+        };
         
         let db, auth, userId, transactionsCollectionRef, unsubscribe;
         let currentDailyTransactions = [];
@@ -261,7 +259,10 @@
         // --- 主要應用程式邏輯 ---
         async function main() {
             try {
-                if (!firebaseConfig.apiKey) { showError("Firebase 設定無效。"); return; }
+                if (!firebaseConfig.apiKey || !firebaseConfig.projectId) { 
+                    showError("Firebase 設定無效。請檢查 firebaseConfig 物件。"); 
+                    return; 
+                }
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -269,7 +270,8 @@
                 onAuthStateChanged(auth, user => {
                     if (user) {
                         userId = user.uid;
-                        const collectionPath = `/artifacts/${appId}/users/${userId}/transactions`;
+                        // 簡化後的資料庫路徑，更適合獨立專案
+                        const collectionPath = `users/${userId}/transactions`;
                         transactionsCollectionRef = collection(db, collectionPath);
                         attachSnapshotListener();
                         loadingState.classList.add('hidden');
@@ -278,8 +280,7 @@
                     }
                 });
                 
-                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                else await signInAnonymously(auth);
+                await signInAnonymously(auth);
 
             } catch (error) {
                 console.error("Firebase 初始化失敗:", error);
@@ -575,9 +576,6 @@
             const deleteBtn = e.target.closest('.delete-btn');
             if (deleteBtn) {
                 const id = deleteBtn.getAttribute('data-id');
-                // The confirm() dialog does not work well in this sandboxed environment.
-                // We will remove it for now to ensure functionality.
-                // In a real application, a custom modal would be a better solution.
                 if (id) {
                     try {
                         await deleteDoc(doc(db, transactionsCollectionRef.path, id));

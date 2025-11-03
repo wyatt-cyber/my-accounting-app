@@ -5,24 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>個人記帳平台 (AI分析版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', 'Noto Sans TC', sans-serif;
         }
-        .page {
-            display: none;
-        }
-        .page.active {
-            display: block;
-        }
-        /* 其他樣式 */
+        .page { display: none; }
+        .page.active { display: block; }
+        /* 隱藏/顯示 主要區塊 */
+        #login-page { display: none; }
+        #app-container { display: none; }
+        #loading-state { display: block; } /* 預設顯示載入中 */
+
         input[type=number]::-webkit-inner-spin-button,
-        input[type=number]::-webkit-outer-spin-button {
-            -webkit-appearance: none; margin: 0;
-        }
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
         .shimmer {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -42,133 +39,163 @@
 </head>
 <body class="bg-gray-100">
 
-    <div class="w-full max-w-4xl mx-auto p-4 md:p-6">
+    <!-- 登入頁面 -->
+    <div id="login-page" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 md:p-12 rounded-2xl shadow-xl max-w-md w-full text-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">歡迎使用</h1>
+            <p class="text-gray-600 mb-8">個人記帳平台</p>
+            <button id="google-login-btn" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#FFFFFF"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#FFFFFF"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FFFFFF"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#FFFFFF"/>
+                </svg>
+                <span>使用 Google 帳號登入</span>
+            </button>
+            <p id="login-error" class="text-red-500 text-sm mt-4"></p>
+        </div>
+    </div>
+
+    <!-- 載入中提示 -->
+    <div id="loading-state" class="text-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+        <p class="mt-4 text-gray-600">正在與雲端同步資料...</p>
+    </div>
+
+    <!-- 主應用程式容器 -->
+    <div id="app-container" class="w-full max-w-4xl mx-auto p-4 md:p-6">
         <header class="text-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">個人記帳平台</h1>
-            <p class="text-gray-500 mt-1">精準掌握您的固定與日常收支</p>
+            <div class="flex justify-between items-center">
+                <span class="w-24"></span> <!-- 佔位符 -->
+                <h1 class="text-3xl font-bold text-gray-800">個人記帳平台</h1>
+                <button id="logout-btn" class="w-24 text-sm text-gray-500 hover:text-red-600 transition">登出</button>
+            </div>
+            <p id="user-email" class="text-gray-500 mt-1 text-sm"></p>
         </header>
 
-        <!-- 載入中提示 -->
-        <div id="loading-state" class="text-center py-8">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p class="mt-4 text-gray-600">正在與雲端同步資料...</p>
-        </div>
+        <!-- 分頁導覽 -->
+        <nav class="flex space-x-2 bg-white p-2 rounded-xl shadow-md mb-6">
+            <button data-page="page-dashboard" class="nav-btn flex-1 py-2 px-4 text-center rounded-lg font-semibold transition">主控台</button>
+            <button data-page="page-fixed-income-history" class="nav-btn flex-1 py-2 px-4 text-center rounded-lg font-semibold transition">固定收入紀錄</button>
+            <button data-page="page-fixed-expense-history" class="nav-btn flex-1 py-2 px-4 text-center rounded-lg font-semibold transition">固定支出紀錄</button>
+            <button data-page="page-daily-history" class="nav-btn flex-1 py-2 px-4 text-center rounded-lg font-semibold transition">日常收支紀錄</button>
+        </nav>
 
-        <!-- 主內容容器 -->
-        <div id="app-container" class="hidden">
-            <!-- 分頁導覽 -->
-            <nav class="flex space-x-2 bg-white p-2 rounded-xl shadow-md mb-6">
-                <button data-page="page-dashboard" class="nav-btn flex-1 py-2 px-4 text-center rounded-lg font-semibold transition">主控台</button>
-                <button data-page="page-fixed-income-history" class="nav-btn flex-1 py-2 px-4 text-center rounded-lg font-semibold transition">固定收入紀錄</button>
-                <button data-page="page-fixed-expense-history" class="nav-btn flex-1 py-2 px-4 text-center rounded-lg font-semibold transition">固定支出紀錄</button>
-                <button data-page="page-daily-history" class="nav-btn flex-1 py-2 px-4 text-center rounded-lg font-semibold transition">日常收支紀錄</button>
-            </nav>
-
-            <!-- 主控台頁面 -->
-            <main id="page-dashboard" class="page">
-                <section id="summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sticky top-4 z-10">
-                    <div class="bg-white/80 backdrop-blur-sm border border-gray-200 text-green-800 p-4 rounded-xl shadow-md text-center">
-                        <h2 class="text-sm font-medium">總收入</h2>
-                        <p id="total-income" class="text-2xl font-semibold mt-1">$0</p>
-                    </div>
-                    <div class="bg-white/80 backdrop-blur-sm border border-gray-200 text-red-800 p-4 rounded-xl shadow-md text-center">
-                        <h2 class="text-sm font-medium">總支出</h2>
-                        <p id="total-expense" class="text-2xl font-semibold mt-1">$0</p>
-                    </div>
-                    <div class="bg-white/80 backdrop-blur-sm border border-gray-200 text-blue-800 p-4 rounded-xl shadow-md text-center">
-                        <h2 class="text-sm font-medium">目前餘額</h2>
-                        <p id="balance" class="text-2xl font-semibold mt-1">$0</p>
-                    </div>
-                </section>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="space-y-6">
-                        <div class="bg-white rounded-2xl shadow-lg p-6">
-                            <h2 class="text-xl font-semibold mb-3 text-gray-700">1. 新增固定收入</h2>
-                            <form id="fixed-income-form" class="grid grid-cols-3 gap-3 items-end">
-                                <div class="col-span-2">
-                                    <label for="fixed-income-desc" class="text-sm font-medium text-gray-600">項目</label>
-                                    <input type="text" id="fixed-income-desc" placeholder="例如：公司薪轉" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                                </div>
-                                <div>
-                                    <label for="fixed-income-amount" class="text-sm font-medium text-gray-600">金額</label>
-                                    <input type="number" id="fixed-income-amount" placeholder="0" required min="0" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                                </div>
-                                <button type="submit" class="col-span-3 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition">新增收入</button>
-                            </form>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow-lg p-6">
-                            <h2 class="text-xl font-semibold mb-3 text-gray-700">2. 新增固定支出</h2>
-                            <form id="fixed-expense-form" class="grid grid-cols-3 gap-3 items-end">
-                                <div class="col-span-2">
-                                    <label for="fixed-expense-desc" class="text-sm font-medium text-gray-600">項目</label>
-                                    <input type="text" id="fixed-expense-desc" placeholder="例如：房屋貸款" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                                </div>
-                                <div>
-                                    <label for="fixed-expense-amount" class="text-sm font-medium text-gray-600">金額</label>
-                                    <input type="number" id="fixed-expense-amount" placeholder="0" required min="0" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                                </div>
-                                <button type="submit" class="col-span-3 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">新增支出</button>
-                            </form>
-                        </div>
-                    </div>
+        <!-- 主控台頁面 -->
+        <main id="page-dashboard" class="page">
+            <section id="summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sticky top-4 z-10">
+                <!-- 總收入 -->
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 text-green-800 p-4 rounded-xl shadow-md text-center">
+                    <h2 class="text-sm font-medium">總收入</h2>
+                    <p id="total-income" class="text-2xl font-semibold mt-1">$0</p>
+                </div>
+                <!-- 總支出 -->
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 text-red-800 p-4 rounded-xl shadow-md text-center">
+                    <h2 class="text-sm font-medium">總支出</h2>
+                    <p id="total-expense" class="text-2xl font-semibold mt-1">$0</p>
+                </div>
+                <!-- 目前餘額 -->
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 text-blue-800 p-4 rounded-xl shadow-md text-center">
+                    <h2 class="text-sm font-medium">目前餘額</h2>
+                    <p id="balance" class="text-2xl font-semibold mt-1">$0</p>
+                </div>
+            </section>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 左欄: 固定收支 -->
+                <div class="space-y-6">
+                    <!-- 固定薪資收入 -->
                     <div class="bg-white rounded-2xl shadow-lg p-6">
-                        <div class="flex justify-between items-center mb-3">
-                             <h2 class="text-xl font-semibold text-gray-700">3. 新增日常收支</h2>
-                             <button id="ai-analysis-btn" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                                 ✨ 取得 AI 財務分析
-                             </button>
-                        </div>
-                         <form id="daily-transaction-form" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                            <div class="md:col-span-2">
-                                <label for="daily-desc" class="text-sm font-medium text-gray-600">項目說明</label>
-                                <input type="text" id="daily-desc" placeholder="例如：晚餐、交通" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <h2 class="text-xl font-semibold mb-3 text-gray-700">1. 新增固定收入</h2>
+                        <form id="fixed-income-form" class="grid grid-cols-3 gap-3 items-end">
+                            <div class="col-span-2">
+                                <label for="fixed-income-desc" class="text-sm font-medium text-gray-600">項目</label>
+                                <input type="text" id="fixed-income-desc" placeholder="例如：公司薪轉" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
                             </div>
                             <div>
-                                <label for="daily-amount" class="text-sm font-medium text-gray-600">金額</label>
-                                <input type="number" id="daily-amount" placeholder="0" required min="0" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                <label for="fixed-income-amount" class="text-sm font-medium text-gray-600">金額</label>
+                                <input type="number" id="fixed-income-amount" placeholder="0" required min="0" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                            </div>
+                            <button type="submit" class="col-span-3 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition">新增收入</button>
+                        </form>
+                    </div>
+
+                    <!-- 固定金融支出 -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h2 class="text-xl font-semibold mb-3 text-gray-700">2. 新增固定支出</h2>
+                        <form id="fixed-expense-form" class="grid grid-cols-3 gap-3 items-end">
+                            <div class="col-span-2">
+                                <label for="fixed-expense-desc" class="text-sm font-medium text-gray-600">項目</label>
+                                <input type="text" id="fixed-expense-desc" placeholder="例如：房屋貸款" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
                             </div>
                             <div>
-                                 <label for="daily-type" class="text-sm font-medium text-gray-600">類型</label>
-                                <select id="daily-type" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
-                                    <option value="expense">支出</option>
-                                    <option value="income">收入</option>
-                                </select>
+                                <label for="fixed-expense-amount" class="text-sm font-medium text-gray-600">金額</label>
+                                <input type="number" id="fixed-expense-amount" placeholder="0" required min="0" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
                             </div>
-                            <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">新增</button>
+                            <button type="submit" class="col-span-3 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">新增支出</button>
                         </form>
                     </div>
                 </div>
-                
-                <section class="mt-6 bg-white rounded-2xl shadow-lg p-6">
-                    <h2 class="text-xl font-semibold mb-4 text-gray-700">每月收支趨勢圖 (近6個月)</h2>
-                    <div id="chart-container" class="relative h-64 md:h-80">
-                        <canvas id="trend-chart"></canvas>
-                        <p id="chart-empty-state" class="absolute inset-0 flex items-center justify-center text-gray-500 hidden">暫無足夠資料可繪製圖表</p>
+
+                <!-- 右欄: 日常收支 -->
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <div class="flex justify-between items-center mb-3">
+                         <h2 class="text-xl font-semibold text-gray-700">3. 新增日常收支</h2>
+                         <button id="ai-analysis-btn" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                             ✨ 取得 AI 財務分析
+                         </button>
                     </div>
-                </section>
-            </main>
+                     <form id="daily-transaction-form" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                        <div class="md:col-span-2">
+                            <label for="daily-desc" class="text-sm font-medium text-gray-600">項目說明</label>
+                            <input type="text" id="daily-desc" placeholder="例如：晚餐、交通" required class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        </div>
+                        <div>
+                            <label for="daily-amount" class="text-sm font-medium text-gray-600">金額</label>
+                            <input type="number" id="daily-amount" placeholder="0" required min="0" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        </div>
+                        <div>
+                             <label for="daily-type" class="text-sm font-medium text-gray-600">類型</label>
+                            <select id="daily-type" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
+                                <option value="expense">支出</option>
+                                <option value="income">收入</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">新增</button>
+                    </form>
+                </div>
+            </div>
             
-            <!-- 固定收入歷史紀錄頁面 -->
-            <section id="page-fixed-income-history" class="page bg-white rounded-2xl shadow-lg p-6">
-                <h2 class="text-2xl font-bold mb-4 text-gray-700">固定收入歷史紀錄</h2>
-                <div id="fixed-income-history-list" class="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2"></div>
+            <!-- 趨勢圖區塊 -->
+            <section class="mt-6 bg-white rounded-2xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">每月收支趨勢圖 (近6個月)</h2>
+                <div id="chart-container" class="relative h-64 md:h-80">
+                    <canvas id="trend-chart"></canvas>
+                    <p id="chart-empty-state" class="absolute inset-0 flex items-center justify-center text-gray-500 hidden">暫無足夠資料可繪製圖表</p>
+                </div>
             </section>
-            
-            <!-- 固定支出歷史紀錄頁面 -->
-            <section id="page-fixed-expense-history" class="page bg-white rounded-2xl shadow-lg p-6">
-                <h2 class="text-2xl font-bold mb-4 text-gray-700">固定支出歷史紀錄</h2>
-                <div id="fixed-expense-history-list" class="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2"></div>
-            </section>
+        </main>
+        
+        <!-- 固定收入歷史紀錄頁面 -->
+        <section id="page-fixed-income-history" class="page bg-white rounded-2xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4 text-gray-700">固定收入歷史紀錄</h2>
+            <div id="fixed-income-history-list" class="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2"></div>
+        </section>
+        
+        <!-- 固定支出歷史紀錄頁面 -->
+        <section id="page-fixed-expense-history" class="page bg-white rounded-2xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4 text-gray-700">固定支出歷史紀錄</h2>
+            <div id="fixed-expense-history-list" class="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2"></div>
+        </section>
 
-            <!-- 日常收支歷史紀錄頁面 -->
-            <section id="page-daily-history" class="page bg-white rounded-2xl shadow-lg p-6">
-                <h2 class="text-2xl font-bold mb-4 text-gray-700">日常收支歷史紀錄</h2>
-                <div id="daily-history-list" class="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2"></div>
-            </section>
+        <!-- 日常收支歷史紀錄頁面 -->
+        <section id="page-daily-history" class="page bg-white rounded-2xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold mb-4 text-gray-700">日常收支歷史紀錄</h2>
+            <div id="daily-history-list" class="space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2"></div>
+        </section>
 
-        </div>
-    </div>
+    </div> <!-- 結束 #app-container -->
 
     <!-- AI 分析 Modal -->
     <div id="ai-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
@@ -198,12 +225,35 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // 匯入 Google 登入所需的新模組
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            onSnapshot, 
+            deleteDoc, 
+            doc, 
+            query, 
+            orderBy, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- DOM 元素 ---
+        const loginPage = document.getElementById('login-page');
+        const googleLoginBtn = document.getElementById('google-login-btn');
+        const loginError = document.getElementById('login-error');
         const loadingState = document.getElementById('loading-state');
         const appContainer = document.getElementById('app-container');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userEmailEl = document.getElementById('user-email');
+        
         const pages = document.querySelectorAll('.page');
         const navBtns = document.querySelectorAll('.nav-btn');
         const totalIncomeEl = document.getElementById('total-income');
@@ -225,7 +275,7 @@
         const aiModalResult = document.getElementById('ai-modal-result');
 
         // --- Firebase 設定 ---
-        // 請將此處替換為您自己 Firebase 專案的設定
+        // ! 重要：請貼上您自己的 Firebase 設定
         const firebaseConfig = {
             apiKey: "AIzaSyBB0kcD1ECH7CLXvM01RliMpzTLqBy3tgk",
             authDomain: "my-accounting-app-data-f7f1e.firebaseapp.com",
@@ -259,41 +309,95 @@
         // --- 主要應用程式邏輯 ---
         async function main() {
             try {
-                if (!firebaseConfig.apiKey || !firebaseConfig.projectId) { 
-                    showError("Firebase 設定無效。請檢查 firebaseConfig 物件。"); 
+                if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") { 
+                    showError("Firebase 設定無效。請在程式碼中填入您自己的 firebaseConfig。"); 
                     return; 
                 }
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
+                // 監聽認證狀態改變
                 onAuthStateChanged(auth, user => {
                     if (user) {
+                        // --- 使用者已登入 ---
                         userId = user.uid;
-                        // 簡化後的資料庫路徑，更適合獨立專案
+                        userEmailEl.textContent = `登入身分：${user.email}`;
+                        
+                        // 顯示載入中，隱藏登入頁
+                        loadingState.style.display = 'block';
+                        loginPage.style.display = 'none';
+                        appContainer.style.display = 'none'; // 保持隱藏直到資料載入
+                        
+                        // 建立此使用者的專屬資料庫路徑
                         const collectionPath = `users/${userId}/transactions`;
                         transactionsCollectionRef = collection(db, collectionPath);
+                        
+                        // 開始監聽資料
                         attachSnapshotListener();
-                        loadingState.classList.add('hidden');
-                        appContainer.classList.remove('hidden');
-                        showPage('page-dashboard'); // 預設顯示主控台
+                        
+                        // 顯示主控台
+                        showPage('page-dashboard');
+
+                    } else {
+                        // --- 使用者未登入 ---
+                        userId = null;
+                        userEmailEl.textContent = '';
+                        
+                        // 顯示登入頁面，隱藏其他所有內容
+                        loginPage.style.display = 'flex';
+                        loadingState.style.display = 'none';
+                        appContainer.style.display = 'none';
+                        
+                        // 如果有舊的監聽器，將其移除
+                        if (unsubscribe) {
+                            unsubscribe();
+                            unsubscribe = null;
+                        }
                     }
                 });
-                
-                await signInAnonymously(auth);
 
             } catch (error) {
                 console.error("Firebase 初始化失敗:", error);
-                showError("無法連接到雲端服務。");
+                showError("無法連接到雲端服務。", true);
+            }
+        }
+        
+        // --- Google 登入處理 ---
+        async function handleGoogleLogin() {
+            const provider = new GoogleAuthProvider();
+            try {
+                loginError.textContent = '';
+                await signInWithPopup(auth, provider);
+                // 登入成功後，onAuthStateChanged 會自動處理後續
+            } catch (error) {
+                console.error("Google 登入失敗:", error);
+                loginError.textContent = `登入失敗：${error.message}`;
+            }
+        }
+        
+        // --- 登出處理 ---
+        async function handleLogout() {
+            try {
+                await signOut(auth);
+                // 登出成功後，onAuthStateChanged 會自動處理並顯示登入頁面
+            } catch (error) {
+                console.error("登出失敗:", error);
             }
         }
         
         function attachSnapshotListener() {
-            if (unsubscribe) unsubscribe();
+            if (unsubscribe) unsubscribe(); // 移除舊的監聽
+            
             const q = query(transactionsCollectionRef, orderBy("createdAt", "desc"));
             unsubscribe = onSnapshot(q, snapshot => {
                 const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderUI(transactions);
+                
+                // 成功取得資料後，才顯示 APP 內容並隱藏載入中
+                loadingState.style.display = 'none';
+                appContainer.style.display = 'block';
+
             }, error => {
                 console.error("讀取資料失敗:", error);
                 showError("無法讀取您的記帳資料。");
@@ -301,6 +405,7 @@
         }
 
         function renderUI(transactions) {
+            // ... (此函數內容與前一版相同，無需修改) ...
             const fixedIncomes = transactions.filter(t => t.category === 'fixedIncome');
             const fixedExpenses = transactions.filter(t => t.category === 'fixedExpense');
             currentDailyTransactions = transactions.filter(t => t.category === 'daily' || !t.category);
@@ -316,6 +421,7 @@
         }
         
         function renderHistoryList(listElement, items) {
+            // ... (此函數內容與前一版相同，無需修改) ...
             listElement.innerHTML = '';
             if (items.length === 0) {
                  listElement.innerHTML = `<p class="text-center text-gray-500 py-10">尚無任何歷史紀錄。</p>`;
@@ -325,6 +431,7 @@
         }
 
         function updateSummary(transactions) {
+            // ... (此函數內容與前一版相同，無需修改) ...
             const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
             const expense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
             const balance = income - expense;
@@ -337,6 +444,7 @@
         }
 
         function addHistoryItemToDOM(parentElement, transaction) {
+            // ... (此函數內容與前一版相同，無需修改) ...
             const item = document.createElement('div');
             const isIncome = transaction.type === 'income';
             const date = transaction.createdAt?.toDate()?.toLocaleDateString() || '日期不明';
@@ -360,6 +468,7 @@
         }
 
         function renderTrendChart(transactions) {
+            // ... (此函數內容與前一版相同，無需修改) ...
             if (trendChart) {
                 trendChart.destroy();
             }
@@ -462,7 +571,7 @@
         }
         
         // --- Gemini API 相關功能 ---
-        function openAiModal() {
+        function openAiModal() { /* ... (此函數內容與前一版相同) ... */ 
             aiModal.classList.remove('hidden');
             aiModalLoading.classList.remove('hidden');
             aiModalResult.classList.add('hidden');
@@ -472,23 +581,20 @@
                 aiModalContainer.classList.remove('opacity-0', 'scale-95');
             }, 10);
         }
-
-        function closeAiModal() {
+        function closeAiModal() { /* ... (此函數內容與前一版相同) ... */ 
             aiModalOverlay.classList.add('opacity-0');
             aiModalContainer.classList.add('opacity-0', 'scale-95');
             setTimeout(() => {
                 aiModal.classList.add('hidden');
             }, 300);
         }
-
-        function formatResponseForHTML(text) {
+        function formatResponseForHTML(text) { /* ... (此函數內容與前一版相同) ... */ 
              return text
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')       
                 .replace(/(\n)/g, '<br>');
         }
-
-        async function getFinancialAnalysis() {
+        async function getFinancialAnalysis() { /* ... (此函數內容與前一版相同) ... */ 
             openAiModal();
             const dailyExpenses = currentDailyTransactions.filter(t => t.type === 'expense');
             if (dailyExpenses.length === 0) {
@@ -511,7 +617,15 @@
             const userQuery = `這是我最近的日常支出清單，請幫我分析一下：\n${expenseList}`;
 
             try {
-                const apiKey = "AIzaSyC6Z6UWB7B9eAJcdCifOmxTc4LWV3Dzdb8";
+                // ! 重要：請貼上您自己的 Gemini API 金鑰
+                const apiKey = "AIzaSyC6Z6UWB7B9eAJcdCifOmxTc4LWV3Dzdb8"; 
+                if (apiKey === "AIzaSyC6Z6UWB7B9eAJcdCifOmxTc4LWV3Dzdb8" || !apiKey) {
+                    aiModalResult.innerHTML = '<p>Gemini API 金鑰尚未設定。請在程式碼中填入您的金鑰。</p>';
+                    aiModalLoading.classList.add('hidden');
+                    aiModalResult.classList.remove('hidden');
+                    return;
+                }
+                
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                 
                 const payload = {
@@ -549,6 +663,7 @@
 
         // --- 事件處理函式 ---
         async function handleAddTransaction(e, category, type) {
+            // ... (此函數內容與前一版相同，無需修改) ...
             e.preventDefault();
             const form = e.target;
             const description = form.querySelector('input[type="text"]').value.trim();
@@ -573,6 +688,7 @@
         }
         
         async function handleDeleteTransaction(e) {
+            // ... (此函數內容與前一版相同，無需修改) ...
             const deleteBtn = e.target.closest('.delete-btn');
             if (deleteBtn) {
                 const id = deleteBtn.getAttribute('data-id');
@@ -587,9 +703,13 @@
             }
         }
         
-        function showError(message) {
-            loadingState.classList.remove('hidden');
-            appContainer.classList.add('hidden');
+        function showError(message, isFatal = false) {
+            // ... (此函數內容與前一版相同，無需修改) ...
+            loadingState.style.display = 'block'; // 確保錯誤可見
+            appContainer.style.display = 'none';
+            if (isFatal) {
+                loginPage.style.display = 'none';
+            }
             loadingState.innerHTML = `<div class="text-center py-8 bg-red-100 text-red-700 rounded-lg p-4">${message}</div>`;
         }
         
@@ -602,10 +722,13 @@
         aiAnalysisBtn.addEventListener('click', getFinancialAnalysis);
         aiModalCloseBtn.addEventListener('click', closeAiModal);
         aiModalOverlay.addEventListener('click', closeAiModal);
+        
+        // 綁定新的登入/登出按鈕
+        googleLoginBtn.addEventListener('click', handleGoogleLogin);
+        logoutBtn.addEventListener('click', handleLogout);
 
         // --- 啟動應用程式 ---
         main();
     </script>
 </body>
 </html>
-
